@@ -21,6 +21,13 @@ from homeassistant.helpers.issue_registry import (
     async_create_issue,
     async_delete_issue,
 )
+from homeassistant.helpers.selector import (
+    EntitySelector,
+    EntitySelectorConfig,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
+)
 from homeassistant.helpers.service_info.mqtt import MqttServiceInfo
 
 from .const import (
@@ -29,10 +36,18 @@ from .const import (
     CONF_DEFAULT_NOTIFICATION_TITLE,
     CONF_DEVICE_NAME,
     CONF_HA_API,
+    CONF_MEDIA_PLAYER_POWER,
+    CONF_MEDIA_PLAYER_SERVICE_STATE,
+    CONF_MEDIA_PLAYER_TURN_OFF,
+    CONF_MEDIA_PLAYER_TURN_OFF_SCRIPT,
+    CONF_MEDIA_PLAYER_TURN_ON_SCRIPT,
     CONF_ORIGINAL_DEVICE_NAME,
     CONF_USER_ID,
     DISCOVERY_USER_ID,
     DOMAIN,
+    MEDIA_PLAYER_TURN_OFF_COMMANDS,
+    MEDIA_PLAYER_TURN_OFF_NONE,
+    MEDIA_PLAYER_TURN_OFF_SCRIPT,
     MINIMUM_CLIENT_VERSION,
     SIGNAL_PENDING_DEVICE,
 )
@@ -125,19 +140,60 @@ def _async_report_client_version(
 class OptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Manage the options."""
+        errors: dict[str, str] = {}
         if user_input is not None:
             user_input[CONF_DEFAULT_NOTIFICATION_TITLE] = user_input[CONF_DEFAULT_NOTIFICATION_TITLE].strip()
 
-            return self.async_create_entry(title="", data=user_input)
+            # Turn off set to Script with no script would do nothing without a word.
+            if user_input.get(CONF_MEDIA_PLAYER_TURN_OFF) == MEDIA_PLAYER_TURN_OFF_SCRIPT and not user_input.get(
+                CONF_MEDIA_PLAYER_TURN_OFF_SCRIPT
+            ):
+                errors[CONF_MEDIA_PLAYER_TURN_OFF_SCRIPT] = "turn_off_script_required"
+            else:
+                return self.async_create_entry(title="", data=user_input)
 
+        # Shown again after an error with what was entered, otherwise with the saved options.
+        options = user_input if user_input is not None else self.config_entry.options
         return self.async_show_form(
+            errors=errors,
             step_id="init",
             data_schema=vol.Schema(
                 {
                     vol.Optional(
                         CONF_DEFAULT_NOTIFICATION_TITLE,
-                        default=self.config_entry.options.get(CONF_DEFAULT_NOTIFICATION_TITLE, ATTR_TITLE_DEFAULT),
-                    ): str
+                        default=options.get(CONF_DEFAULT_NOTIFICATION_TITLE, ATTR_TITLE_DEFAULT),
+                    ): str,
+                    vol.Optional(
+                        CONF_MEDIA_PLAYER_POWER,
+                        default=options.get(CONF_MEDIA_PLAYER_POWER, False),
+                    ): bool,
+                    vol.Optional(
+                        CONF_MEDIA_PLAYER_SERVICE_STATE,
+                        default=options.get(CONF_MEDIA_PLAYER_SERVICE_STATE, True),
+                    ): bool,
+                    # A suggested value, not a default, so that a script can be cleared.
+                    vol.Optional(
+                        CONF_MEDIA_PLAYER_TURN_ON_SCRIPT,
+                        description={"suggested_value": options.get(CONF_MEDIA_PLAYER_TURN_ON_SCRIPT)},
+                    ): EntitySelector(EntitySelectorConfig(domain="script")),
+                    vol.Optional(
+                        CONF_MEDIA_PLAYER_TURN_OFF,
+                        default=options.get(CONF_MEDIA_PLAYER_TURN_OFF, MEDIA_PLAYER_TURN_OFF_NONE),
+                    ): SelectSelector(
+                        SelectSelectorConfig(
+                            options=[
+                                MEDIA_PLAYER_TURN_OFF_NONE,
+                                MEDIA_PLAYER_TURN_OFF_SCRIPT,
+                                *MEDIA_PLAYER_TURN_OFF_COMMANDS,
+                            ],
+                            translation_key=CONF_MEDIA_PLAYER_TURN_OFF,
+                            mode=SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
+                    vol.Optional(
+                        CONF_MEDIA_PLAYER_TURN_OFF_SCRIPT,
+                        description={"suggested_value": options.get(CONF_MEDIA_PLAYER_TURN_OFF_SCRIPT)},
+                    ): EntitySelector(EntitySelectorConfig(domain="script")),
                 }
             ),
         )
