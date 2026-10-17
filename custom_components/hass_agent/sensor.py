@@ -78,6 +78,15 @@ SENSOR_DESCRIPTIONS: tuple[SensorEntityDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:harddisk",
     ),
+    # Client 10.9.3-beta.5+, from the Windows service: Windows' verdict on the drives (the
+    # worst of them); the temperatures and the power-on hours are attributes.
+    SensorEntityDescription(
+        key="drive_health",
+        translation_key="drive_health",
+        icon="mdi:harddisk",
+        device_class=SensorDeviceClass.ENUM,
+        options=["healthy", "warning", "unhealthy", "unknown"],
+    ),
     SensorEntityDescription(
         key="uptime_seconds",
         translation_key="uptime",
