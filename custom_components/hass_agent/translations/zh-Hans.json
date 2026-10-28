@@ -206,7 +206,7 @@
     },
     "set_app_volume": {
       "name": "分别设置应用的音量",
-      "description": "对于Windows音量合成器中的应用程序，可以指定特定应用程序的音量或静音状态。此功能需要应用版本10.9.0+",
+      "description": "对于Windows音量合成器中的应用程序，可以指定特定应用程序的音量或静音状态。此功能需要在应用中启用音频会话(Audio sessions)传感器，且应用版本在10.9.0+",
       "fields": {
         "device_name": {
           "name": "设备名",
